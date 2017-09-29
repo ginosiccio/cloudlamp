@@ -10,9 +10,13 @@ ColorMode colorMode = HUE;
 Mode mode = ON;
 Mode lastMode = OFF;
 TempestMode tempestMode = WAITING;
-
 // Define the array of leds
 CRGB leds[NUM_LEDS];
+
+unsigned int fade_hue[NUM_LEDS];
+unsigned int fade_sat[NUM_LEDS];
+unsigned int col1=55;
+unsigned int col2=185;
 
 // Parameters for a real thunder simulation
 unsigned long  _1mn = 60000L;
@@ -154,6 +158,15 @@ void receiveEvent(int bytes) {
                   mode = FADE1;
                 } else if(mode==FADE1){
                   Serial.print(F("SWITCH FADE MODE 2 !!!!!"));
+                  for(unsigned int i=0;i<NUM_LEDS;i++){
+                    fade_hue[i]=random(128,255);
+                    fade_sat[i]=random(128,255);
+                    if(i & 1 == 1){ 
+                       col1=random(1,255);
+                    }else{
+                       col2=random(185,255);  
+                    }
+                  }
                   mode = FADE2;
                 }  
                 break;
@@ -363,17 +376,17 @@ void colour_fade1(){
     Serial.print(F("colour fade 1 : "));
     unsigned int hue=128+127*cos(2*PI/hueFadeDelay*millis());
     unsigned int sat=128+127*cos(2*PI/satFadeDelay*millis());
-    unsigned int val=128+127*cos(2*PI/valFadeDelay*millis());
+    unsigned int col=128+127*cos(2*PI/valFadeDelay*millis());
+    if(hue<=64){hue=64;}
     if(sat<=64){sat=64;}
-    if(val<=64){val=64;}
     Serial.print(F("hue : "));
     Serial.print(hue);
     Serial.print(F(" - sat : "));
     Serial.print(sat);
-    Serial.print(F(" - val : "));
-    Serial.println(val);
+    Serial.print(F(" - col : "));
+    Serial.println(col);
     for (unsigned int i=0;i<NUM_LEDS;i++){
-        leds[i] = CHSV(hue, sat, val);
+        leds[i] = CHSV(hue, sat, col);
     }
     FastLED.show();
     delay(50);
@@ -382,24 +395,38 @@ void colour_fade1(){
 void colour_fade2(){
     Serial.println(F("colour fade 2 : "));
     for(unsigned int i=0;i<NUM_LEDS;i++){
-        unsigned int hue=128+127*cos(2*PI/hueFadeDelay*millis());
-        unsigned int sat=128+127*cos(2*PI/satFadeDelay*millis());
-        unsigned int val=128+127*cos(2*PI/valFadeDelay*millis());
-        if(sat<=84){sat=84;}
-        if(val<=84){val=84;}
+        fade_hue[i]=fade_hue[i]+1;
+        fade_sat[i]=fade_sat[i]+1;
+        unsigned int j = 1;
         if(i & 1 == 1){
-            Serial.print(F("IMPAIR: "));
-            Serial.print(i);
-            leds[i] = CHSV(hue, sat, val);
+          col1=col1+1;
+          j=col1;
         }else{
-            Serial.print(F("  PAIR: "));
-            Serial.print(i);
-            leds[i] = CHSV(random(0,255),sat,val);
+          col2=col2+1;
+          j=col2;
         }
+        if(col1>255){
+          col1=1;
+        }
+        if(col2>255){
+          col2=1;
+        }
+        if(fade_hue[i]>255){
+          fade_hue[i]=128;
+        }
+        if(fade_sat[i]>255){
+          fade_sat[i]=128;
+        }
+        Serial.print(F("hue : "));
+        Serial.print(fade_hue[i]);
+        Serial.print(F(" - sat : "));
+        Serial.print(fade_sat[i]);
+        Serial.print(F(" - col : "));
+        Serial.println(j);
+        leds[i] = CHSV(fade_hue[i], fade_sat[i], j);
         FastLED.show();
+        delay(500);
     }
-    Serial.println("");
-    delay(5000);
 }
 
 void acid_cloud(){
@@ -429,7 +456,6 @@ void _tempest(){
     if(tempestMode != WAITING){
       Serial.print(F("CurrentTime : "));
       logTime(currentTime);
-      
       if(hueFading){
         Serial.println("hueFading change ");
         _hue=128+127*cos(2*PI/(hueFadeDelay/10)*millis());
