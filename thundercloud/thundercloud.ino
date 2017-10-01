@@ -15,7 +15,8 @@ CRGB leds[NUM_LEDS];
 
 unsigned int fade_hue[NUM_LEDS];
 unsigned int fade_sat[NUM_LEDS];
-unsigned int col1=55;
+unsigned int fade_dir = 1;
+unsigned int col1=180;
 unsigned int col2=185;
 
 // Parameters for a real thunder simulation
@@ -102,6 +103,7 @@ void setup() {
 void receiveEvent(int bytes) {
     // Here, we set the mode based on the IR signal received. Check the debug log when you press a button on your remote, and  add the hex code here (you need 0x prior to each command to indicate it's a hex value)
     while(Wire.available()){
+        delay(5);
         int received = Wire.read();
         Serial.print(F("Receiving IR hex: "));
         Serial.println(received,HEX);
@@ -153,11 +155,11 @@ void receiveEvent(int bytes) {
             case 0xF:
                 mode = ACID; break;
             case 0x37:
-               if(mode!=FADE2 && mode !=FADE1) {
-                  Serial.print(F("SWITCH FADE MODE 1 !!!!!"));
+               if(mode!=FADE1 && mode!=FADE2 && mode!=FADE3) {
+                  Serial.print(F("SWITCH FADE MODE 1 !"));
                   mode = FADE1;
                 } else if(mode==FADE1){
-                  Serial.print(F("SWITCH FADE MODE 2 !!!!!"));
+                  Serial.print(F("SWITCH FADE MODE 2 !"));
                   for(unsigned int i=0;i<NUM_LEDS;i++){
                     fade_hue[i]=random(128,255);
                     fade_sat[i]=random(128,255);
@@ -168,6 +170,16 @@ void receiveEvent(int bytes) {
                     }
                   }
                   mode = FADE2;
+                } else if(mode==FADE2){
+                  Serial.print(F("SWITCH FADE MODE 3 !"));
+                  for(unsigned int i=0;i<NUM_LEDS;i++){
+                    fade_hue[i]=random(0,255);
+                    fade_sat[i]=random(128,255);
+                    col1=random(90,255);
+                  }
+                  mode = FADE3;
+                } else if (mode==FADE3) {
+                  mode = FADE1;
                 }  
                 break;
             case 0x17:
@@ -301,6 +313,7 @@ void loop() {
         case ACID: acid_cloud();break;
         case FADE1: colour_fade1();break;
         case FADE2: colour_fade2();break;
+        case FADE3: colour_fade3();break;
         case TEMPEST: _tempest();break;
         case WHITE: single_colour();break;
         case RED: single_colour();break;
@@ -427,6 +440,46 @@ void colour_fade2(){
         FastLED.show();
         delay(500);
     }
+}
+
+void colour_fade3(){
+    Serial.println(F("colour fade 3 : "));
+    unsigned int r = random(50,255);
+    if(fade_dir==1 && (r>=col1-10 && r<=col1+10)){
+      col1=col1+1;
+    }
+    if(fade_dir==0 && (r>=col1-10 && r<=col1+10)){
+      col1=col1-1; 
+    }
+    if(col1>=255){
+      col1=255;
+      fade_dir=0;
+    }
+    if(col1<=70){
+      col1=70;
+      fade_dir=1;
+    }
+    for(unsigned int i=0;i<NUM_LEDS;i++) {
+        fade_hue[i]=fade_hue[i]+1;
+        fade_sat[i]=fade_sat[i]+1;
+        if(fade_hue[i]>255){
+          fade_hue[i]=0;
+        }
+        if(fade_sat[i]>255){
+          fade_sat[i]=128;
+        }
+        if(i==1) {
+          Serial.print(F("hue : "));
+          Serial.print(fade_hue[i]);
+          Serial.print(F(" - sat : "));
+          Serial.print(fade_sat[i]);
+          Serial.print(F(" - col : "));
+          Serial.println(col1);
+        }
+        leds[i] = CHSV(fade_hue[i], fade_sat[i], col1);
+    }
+    delay(5);
+    FastLED.show();
 }
 
 void acid_cloud(){
